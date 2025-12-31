@@ -65,7 +65,7 @@
             <!-- Copy a bundled JRE directory into target so launch4j can include it alongside the exe -->
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>3.4.0</version>
                 <executions>
                     <execution>
                         <id>copy-jre</id>
