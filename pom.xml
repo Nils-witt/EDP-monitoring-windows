@@ -93,8 +93,10 @@
                             <outputDirectory>${project.build.directory}</outputDirectory>
                             <resources>
                                 <resource>
-                                    <directory>${project.basedir}/config.properties.example</directory>
-                                    <filtering>false</filtering>
+                                    <directory>${project.basedir}</directory>
+                                    <includes>
+                                        <include>config.properties.example</include>
+                                    </includes>
                                 </resource>
                             </resources>
                         </configuration>
