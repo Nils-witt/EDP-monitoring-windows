@@ -29,17 +29,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-
 
+      - name: Install NSIS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis
+
       - name: Build (package)
         run: mvn -B -DskipTests clean package
 
       - name: Show target directory (for debugging)
-        run: dir target
+        run: ls -la target
 
-      - name: Upload Windows exe artifact
+      - name: Build NSIS installer
+        run: |
+          # Create target directory for installer outputs
+          mkdir -p target/installer
+          # Run makensis to build the installer; installer script expects files under target/
+          makensis -V4 -DOUTDIR=target -DAPP_EXE="target/${{ github.event.repository.name }}-1.0-SNAPSHOT.exe" scripts/installer/installer.nsi
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: windows-exe
+          name: windows-artifacts
           path: |
             target/*.exe
+            target/*.msi
+            target/installer/*.exe
             target/jre
             target/config.properties.example
