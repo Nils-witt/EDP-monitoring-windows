@@ -29,7 +29,7 @@ public class Main {
 
         // Ensure logs directory exists so the file appender can write to it
         try {
-            Path logs = Paths.get("logs");
+            Path logs = Paths.get(System.getProperty("user.home"), "logs");
             if (!Files.exists(logs)) {
                 Files.createDirectories(logs);
                 logger.info("Created logs directory: {}", logs.toAbsolutePath());
