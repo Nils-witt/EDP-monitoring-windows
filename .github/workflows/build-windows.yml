@@ -42,3 +42,4 @@ jobs:
           path: |
             target/*.exe
             target/jre
+            target/config.properties.example
