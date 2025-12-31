@@ -54,7 +54,3 @@ jobs:
           name: windows-artifacts
           path: |
             target/*.exe
-            target/*.msi
-            target/installer/*.exe
-            target/jre
-            target/config.properties.example

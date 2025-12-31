@@ -20,9 +20,9 @@ Section "Install"
   File "target/windows-client-1.0-SNAPSHOT.exe"
 
   ; Copy JRE dir recursively (if present)
-  IfFileExists ".\\target\\jre\\*" 0 +3
+  IfFileExists "target\\jre\\*" 0 +3
     SetOutPath "$INSTDIR\\jre"
-    File /r ".\\target\\jre\\*"
+    File /r "target\\jre\\*"
 
   ; Copy example config into install dir
   SetOutPath "$INSTDIR"
