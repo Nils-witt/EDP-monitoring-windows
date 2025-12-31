@@ -27,7 +27,6 @@ public class Main {
 
         logger.info("Using DB URL: {} (user={})", url, user);
 
-        // Ensure logs directory exists so the file appender can write to it
         try {
             Path logs = Paths.get(System.getProperty("user.home"), "logs");
             if (!Files.exists(logs)) {
@@ -73,7 +72,7 @@ public class Main {
                 logger.warn("Failed to read config.properties: {}. Falling back to environment variables.", e.getMessage());
             }
         } else {
-            logger.info("No config.properties found in working directory; using environment variables or defaults.");
+            logger.info("No config.properties found in working directory; using environment variables or defaults. " + cfgFile.toAbsolutePath().toString());
         }
         return props;
     }

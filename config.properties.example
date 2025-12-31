@@ -10,3 +10,8 @@
 # Database password
 # db.password=edp_password
 
+# Api Url
+# api.url=http://
+
+# Api Token
+# api.token=your_api_token_here
