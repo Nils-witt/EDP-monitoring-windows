@@ -20,14 +20,12 @@ Section "Install"
   File "target/windows-client-1.0-SNAPSHOT.exe"
 
   ; Copy JRE dir recursively (if present)
-  IfFileExists "target\\jre\\*" 0 +3
-    SetOutPath "$INSTDIR\\jre"
-    File /r "target\\jre\\*"
+  SetOutPath "$INSTDIR\\jre"
+  File /r "target\\jre\\*"
 
   ; Copy example config into install dir
   SetOutPath "$INSTDIR"
-  IfFileExists ".\\target\\config.properties.example" 0 +2
-    File ".\\target\\config.properties.example"
+  File "target\\config.properties.example"
 
   ; Create Start Menu folder and a shortcut
   CreateDirectory "$SMPROGRAMS\\${APP_NAME}"
