@@ -1,0 +1,12 @@
+# Example config.properties for edpmonitoring
+# Place a copy named `config.properties` in the same directory where you run the app.
+
+# JDBC URL for MariaDB
+# db.url=jdbc:mariadb://127.0.0.1:3306/edp_monitoring
+
+# Database user
+# db.user=edp_user
+
+# Database password
+# db.password=edp_password
+

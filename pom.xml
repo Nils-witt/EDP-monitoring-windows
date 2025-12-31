@@ -12,11 +12,8 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- Defaults for antrun properties used during generate-resources (can be overridden via -D) -->
-        <skipFetchJre>false</skipFetchJre>
-        <jre.exe.exists></jre.exe.exists>
-        <need.fetch.jre></need.fetch.jre>
-        <should.fetch.jre></should.fetch.jre>
+        <!-- (No extra properties required) -->
+        <log4j2.version>2.25.3</log4j2.version>
     </properties>
 
     <dependencies>
@@ -24,6 +21,17 @@
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
             <version>3.2.0</version>
+        </dependency>
+        <!-- Log4j2 for structured logging and file rolling -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j2.version}</version>
         </dependency>
     </dependencies>
 
@@ -75,6 +83,22 @@
                             </resources>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>copy-sample-config</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/config.properties.example</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 
@@ -102,9 +126,6 @@
                     <dontWrapJar>false</dontWrapJar>
                     <headerType>console</headerType>
                     <errTitle>${project.name}</errTitle>
-
-                    <!-- Point to the JRE directory that was copied into target by maven-resources-plugin -->
-                    <jrePath>${project.build.directory}/jre</jrePath>
 
                     <jre>
                         <requires64Bit>true</requires64Bit>
