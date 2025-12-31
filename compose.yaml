@@ -1,0 +1,16 @@
+
+
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: edp_mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: examplepassword
+      MYSQL_DATABASE: edp_monitoring
+      MYSQL_USER: edp_user
+      MYSQL_PASSWORD: edp_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/sample.sql:/docker-entrypoint-initdb.d/init.sql

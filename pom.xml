@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>dev.nilswitt.rk.edpmonitoring</groupId>
+    <artifactId>windows-client</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Create an uber-jar with the main class set -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>shaded</shadedClassifierName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>dev.nilswitt.rk.edpmonitoring.Main</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Wrap the shaded jar into a Windows .exe -->
+            <plugin>
+                <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                <artifactId>launch4j-maven-plugin</artifactId>
+                <version>2.7.0</version>
+                <executions>
+                    <execution>
+                        <id>create-exe</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>launch4j</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- Output executable path -->
+                    <outfile>${project.build.directory}/${project.artifactId}-${project.version}.exe</outfile>
+
+                    <!-- Point to the shaded uber-jar created by the shade plugin -->
+                    <jar>${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar</jar>
+
+                    <dontWrapJar>false</dontWrapJar>
+                    <headerType>console</headerType>
+                    <errTitle>${project.name}</errTitle>
+
+                    <!-- Minimum JRE version required on target system -->
+                    <jreMinVersion>21.0.0</jreMinVersion>
+
+                    <!-- Optionally configure JVM options or a bundled JRE path -->
+                    <!-- <jrePath>jre</jrePath> -->
+
+                    <!-- If you have an .ico file, set it here (relative path or absolute) -->
+                    <!-- <icon>${project.basedir}/src/main/resources/app.ico</icon> -->
+                    <jre>
+                        <requires64Bit>true</requires64Bit>
+                        <minVersion>1.8.0</minVersion>
+                    </jre>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
