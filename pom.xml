@@ -109,6 +109,7 @@
                     <jre>
                         <requires64Bit>true</requires64Bit>
                         <minVersion>21.0.0</minVersion>
+                        <path>jre</path>
                     </jre>
                 </configuration>
             </plugin>
