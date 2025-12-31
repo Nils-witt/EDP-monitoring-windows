@@ -12,6 +12,11 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Defaults for antrun properties used during generate-resources (can be overridden via -D) -->
+        <skipFetchJre>false</skipFetchJre>
+        <jre.exe.exists></jre.exe.exists>
+        <need.fetch.jre></need.fetch.jre>
+        <should.fetch.jre></should.fetch.jre>
     </properties>
 
     <dependencies>
@@ -49,7 +54,31 @@
                 </executions>
             </plugin>
 
-            <!-- Wrap the shaded jar into a Windows .exe -->
+            <!-- Copy a bundled JRE directory into target so launch4j can include it alongside the exe -->
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-jre</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/jre</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/jre</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Wrap the shaded jar into a Windows .exe and reference the bundled JRE -->
             <plugin>
                 <groupId>com.akathist.maven.plugins.launch4j</groupId>
                 <artifactId>launch4j-maven-plugin</artifactId>
@@ -74,19 +103,40 @@
                     <headerType>console</headerType>
                     <errTitle>${project.name}</errTitle>
 
-                    <!-- Minimum JRE version required on target system -->
-                    <jreMinVersion>21.0.0</jreMinVersion>
+                    <!-- Point to the JRE directory that was copied into target by maven-resources-plugin -->
+                    <jrePath>${project.build.directory}/jre</jrePath>
 
-                    <!-- Optionally configure JVM options or a bundled JRE path -->
-                    <!-- <jrePath>jre</jrePath> -->
-
-                    <!-- If you have an .ico file, set it here (relative path or absolute) -->
-                    <!-- <icon>${project.basedir}/src/main/resources/app.ico</icon> -->
                     <jre>
                         <requires64Bit>true</requires64Bit>
-                        <minVersion>1.8.0</minVersion>
+                        <minVersion>21.0.0</minVersion>
                     </jre>
                 </configuration>
+            </plugin>
+
+            <!-- Ensure a local jre/ exists by running the fetch script if missing -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <id>fetch-jre-if-missing</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Always invoke the idempotent fetch script; it will no-op if the JRE already exists -->
+                                <echo message="Invoking fetch-jre.sh (script is idempotent)"/>
+                                <exec executable="bash" failonerror="true">
+                                    <arg value="${project.basedir}/scripts/fetch-jre.sh"/>
+                                </exec>
+
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
