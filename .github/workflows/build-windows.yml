@@ -41,11 +41,8 @@ jobs:
 
       - name: Show target directory (for debugging)
         run: ls -la target
-
       - name: Build NSIS installer
         run: |
-          # Create target directory for installer outputs
-          mkdir -p target/installer
           # Run makensis to build the installer; installer script expects files under target/
           makensis -V4 installer.nsi
         working-directory: ${{ github.workspace }}

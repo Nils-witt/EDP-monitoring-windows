@@ -11,7 +11,42 @@ OutFile "target\${OUT_INSTALLER}"
 InstallDir "$PROGRAMFILES\\${APP_NAME}"
 RequestExecutionLevel admin
 
+
+; --- INCLUDES ---
+!include "nsDialogs.nsh"
+!include "LogicLib.nsh"
+
+; --- SERVICE DEFAULTS / VARIABLES ---
+!define SERVICE_NAME "edp-monitoring"
+!define SERVICE_DISPLAYNAME "EDP Monitoring Service"
 Var STARTMENU_FOLDER
+Var INSTALL_AS_SERVICE
+Var SERVICE_CHK ; checkbox control handle
+
+
+Function ServicePageCreate
+  nsDialogs::Create 1018
+  Pop $0
+  ${If} $0 == error
+    Abort
+  ${EndIf}
+
+  ; Checkbox: Install as Windows Service
+  ${NSD_CreateCheckbox} 10u 10u 200u 12u "Install as Windows Service"
+  Pop $SERVICE_CHK
+  ${NSD_SetState} $SERVICE_CHK 1 ; default checked (change to 0 if you prefer unchecked)
+
+  nsDialogs::Show
+FunctionEnd
+
+Function ServicePageLeave
+  ${NSD_GetState} $SERVICE_CHK $0
+  StrCmp $0 1 +2
+    StrCpy $INSTALL_AS_SERVICE "0"
+    Goto done
+  StrCpy $INSTALL_AS_SERVICE "1"
+done:
+FunctionEnd
 
 Section "Install"
   SetOutPath "$INSTDIR"
@@ -34,9 +69,15 @@ Section "Install"
 
   ; Write uninstall information
   WriteUninstaller "$INSTDIR\\Uninstall.exe"
+
+  ; Install and start service if requested
+  Call ServiceInstall
 SectionEnd
 
 Section "Uninstall"
+  ; Stop and remove service (if it was installed)
+
+
   Delete "$SMPROGRAMS\\${APP_NAME}\\${APP_NAME}.lnk"
   RMDir "$SMPROGRAMS\\${APP_NAME}"
 
@@ -54,3 +95,15 @@ Section "Uninstall"
   RMDir "$INSTDIR"
 SectionEnd
 
+
+; --- SERVICE HELPER FUNCTIONS ---
+Function ServiceInstall
+  ; Only install if user opted in
+  StrCmp $INSTALL_AS_SERVICE "1" 0 +2
+    Return
+
+  ; Build path to executable
+  StrCpy $0 "$INSTDIR\\${EXE_NAME}"
+
+  ExecWait 'sc create ${APP_NAME} error= "severe" displayname= "${APP_NAME}" type= "own" start= "auto" binpath= "$0"'
+FunctionEnd
