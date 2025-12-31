@@ -60,3 +60,4 @@ jobs:
         if: github.ref_type == 'tag'
         with:
           files: target/*.exe
+          token: ${{ secrets.GITHUB_TOKEN }}
