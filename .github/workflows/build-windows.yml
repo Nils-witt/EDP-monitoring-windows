@@ -36,7 +36,9 @@ jobs:
         run: dir target
 
       - name: Upload Windows exe artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-exe
-          path: target/*.exe
+          path: |
+            target/*.exe
+            target/jre
