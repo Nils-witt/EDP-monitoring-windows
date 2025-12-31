@@ -17,7 +17,7 @@ Section "Install"
   SetOutPath "$INSTDIR"
 
   ; Copy main exe
-  File ".\\target\\${EXE_NAME}"
+  File "target/windows-client-1.0-SNAPSHOT.exe"
 
   ; Copy JRE dir recursively (if present)
   IfFileExists ".\\target\\jre\\*" 0 +3

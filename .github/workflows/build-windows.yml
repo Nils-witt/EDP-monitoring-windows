@@ -45,7 +45,7 @@ jobs:
           # Create target directory for installer outputs
           mkdir -p target/installer
           # Run makensis to build the installer; installer script expects files under target/
-          makensis -V4 -DOUTDIR=target -DAPP_EXE="target/${{ github.event.repository.name }}-1.0-SNAPSHOT.exe" scripts/installer/installer.nsi
+          makensis -V4 installer.nsi
         working-directory: ${{ github.workspace }}
 
       - name: Upload Windows artifacts
