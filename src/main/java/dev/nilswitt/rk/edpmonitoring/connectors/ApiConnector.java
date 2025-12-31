@@ -5,40 +5,35 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.simple.JSONObject;
 
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class ApiConnector {
 
     private final String apiKey;
     private final String apiUrl;
-    private static final Logger LOGGER = Logger.getLogger(ApiConnector.class.getName());
+    private static final Logger LOGGER = LogManager.getLogger(ApiConnector.class);
 
     public ApiConnector(String apiUrl, String apiKey) {
         this.apiKey = apiKey;
         this.apiUrl = apiUrl;
     }
 
-    public void connect() {
-        // Implement connection logic here
-        System.out.println("Connecting to API at " + apiUrl + " with key " + apiKey);
-    }
-
     public boolean testConnection() {
         LOGGER.info("Connecting to API at " + apiUrl + " with key " + apiKey.substring(0,5) + "*****");
 
         if (apiUrl == null || apiUrl.isEmpty()) {
-            LOGGER.log(Level.WARNING, "apiUrl is empty or null");
+            LOGGER.warn("apiUrl is empty or null");
             return false;
         }
 
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.log(Level.WARNING, "Failed to parse media type");
+            LOGGER.warn( "Failed to parse media type");
             return false;
         }
 
@@ -56,7 +51,7 @@ public class ApiConnector {
             int code = response.code();
             return code >= 200 && code < 300;
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Connection test failed", e);
+            LOGGER.error("Connection test failed", e);
             return false;
         }
     }
