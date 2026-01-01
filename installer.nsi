@@ -70,8 +70,6 @@ Section "Install"
   ; Write uninstall information
   WriteUninstaller "$INSTDIR\\Uninstall.exe"
 
-  ; Install and start service if requested
-  Call ServiceInstall
 SectionEnd
 
 Section "Uninstall"
@@ -94,16 +92,3 @@ Section "Uninstall"
   Delete "$INSTDIR\\Uninstall.exe"
   RMDir "$INSTDIR"
 SectionEnd
-
-
-; --- SERVICE HELPER FUNCTIONS ---
-Function ServiceInstall
-  ; Only install if user opted in
-  StrCmp $INSTALL_AS_SERVICE "1" 0 +2
-    Return
-
-  ; Build path to executable
-  StrCpy $0 "$INSTDIR\\${EXE_NAME}"
-
-  ExecWait 'sc create ${APP_NAME} error= "severe" displayname= "${APP_NAME}" type= "own" start= "auto" binpath= "$0"'
-FunctionEnd
