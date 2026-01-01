@@ -65,7 +65,7 @@ public class Main {
         ArrayList<Unit> apiUnits = apiConnector.getAllUnits();
         apiUnits.forEach(unit -> {
             configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
-            logger.info("Mapped unit from API: {} -> {}", unit.getName(), unit.getId().toString());
+            logger.info("Mapped unit from API: ({}) -> ({})", unit.getName(), unit.getId().toString());
         });
 
         if (configConnector.getConfigValue("db.units.upload", "API_SYNC_UNITS", "false").equalsIgnoreCase("true")) {
@@ -74,7 +74,7 @@ public class Main {
             HashSet<String> dbUnits = mariaDBConnector.getUnits();
 
             for (String dbUnit : dbUnits) {
-                logger.info("Checking unit: {}", dbUnit);
+                logger.info("Checking unit: ({})", dbUnit);
                 if (apiUnits.stream().noneMatch(u -> u.getName().equals(dbUnit))) {
                     logger.info("Unit '{}' exists in database but not in API; creating in API. ", dbUnit);
                     Unit unit = apiConnector.createUnit(dbUnit);
