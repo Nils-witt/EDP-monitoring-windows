@@ -29,7 +29,7 @@ public class Unit {
             if (name == null || name.isEmpty()) {
                 throw new IllegalArgumentException("Unit name is missing in JSON");
             }
-            return new Unit(id, name);
+            return new Unit(id, name.trim());
         } catch (Exception e) {
             logger.error("of()", e.getMessage());
             throw new RuntimeException(e);

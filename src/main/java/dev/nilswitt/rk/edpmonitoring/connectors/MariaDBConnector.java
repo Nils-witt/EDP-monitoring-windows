@@ -103,7 +103,7 @@ public class MariaDBConnector {
 
             while (rs.next()) {
                 String name = rs.getString("RUFNAME");
-                LOGGER.info("Found unit: {}", name);
+                LOGGER.info("Found unit: {}", name.trim());
                 units.add(name);
             }
 
