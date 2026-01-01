@@ -19,3 +19,6 @@
 # Set Unit Mapping
 # unit.[n].name=Unit Name
 # unit.[n].api_id=Unit ID
+
+# Upload Units from DB to API
+# db.units.upload=false

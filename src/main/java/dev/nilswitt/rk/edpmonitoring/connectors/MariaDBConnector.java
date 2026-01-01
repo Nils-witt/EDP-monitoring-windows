@@ -1,10 +1,12 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
+import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class MariaDBConnector {
 
@@ -89,6 +91,31 @@ public class MariaDBConnector {
             System.exit(3);
         }
         return outbox;
+    }
+
+
+    public HashSet<String> getUnits(){
+        HashSet<String> units = new HashSet<>();
+        String query = "SELECT RUFNAME FROM einsatzmittel WHERE FREMDFAHRZEUG = 0";
+        ArrayList<WorkerOutbox> outbox = new ArrayList<>();
+        try (Connection conn = DriverManager.getConnection(url, user, pass);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                String name = rs.getString("RUFNAME");
+                LOGGER.info("Found unit: {}", name);
+                units.add(name);
+            }
+
+        } catch (SQLException e) {
+            LOGGER.error("Database error: {}", e.getMessage(), e);
+            System.exit(2);
+        } catch (Exception e) {
+            LOGGER.error("Unexpected error: {}", e.getMessage(), e);
+            System.exit(3);
+        }
+        return  units;
     }
 
     public class WorkerOutbox {

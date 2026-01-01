@@ -1,12 +1,17 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
+import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 
 public class ApiConnector {
 
@@ -96,6 +101,51 @@ public class ApiConnector {
     }
 
 
+    public ArrayList<Unit> getAllUnits(){
+        ArrayList<Unit> units = new ArrayList<>();
+        LOGGER.info("Getting all units");
+
+        if (apiUrl == null || apiUrl.isEmpty()) {
+            LOGGER.warn("apiUrl is empty or null");
+        }
+
+        OkHttpClient client = new OkHttpClient.Builder().build();
+        MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+        if (mediaType == null) {
+            LOGGER.warn("Failed to parse media type");
+        }
+
+
+
+        Request request = new Request.Builder()
+                .url(apiUrl + "/units/")
+                .get()
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .build();
+        try (Response response = client.newCall(request).execute()) {
+            int code = response.code();
+            String responseBody = response.body().string();
+            LOGGER.info(responseBody);
+            if (code < 200 || code >= 300) {
+                LOGGER.error(String.format("Failed to get units; Code: %d", code));
+
+            }
+            JSONArray jsonArray = (JSONArray) new JSONParser().parse(responseBody);
+            for (Object o : jsonArray) {
+                JSONObject unitJson = (JSONObject) o;
+                Unit unit = Unit.of(unitJson.toJSONString());
+                units.add(unit);
+            }
+        } catch (IOException e) {
+            LOGGER.error("Connection failed", e);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+
+        return units;
+    }
+
+
     public String getApiUrl() {
         return apiUrl;
     }
@@ -121,5 +171,42 @@ public class ApiConnector {
         }
 
 
+    }
+
+    public Unit createUnit(String name) {
+        LOGGER.info("Creating unit " + name);
+        if (apiUrl == null || apiUrl.isEmpty()) {
+            LOGGER.warn("apiUrl is empty or null");
+        }
+
+        OkHttpClient client = new OkHttpClient.Builder().build();
+        MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+        if (mediaType == null) {
+            LOGGER.warn("Failed to parse media type");
+        }
+
+        JSONObject json = new JSONObject();
+        json.put("name", name);
+        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+
+        Request request = new Request.Builder()
+                .url(apiUrl + "/units/")
+                .post(body)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .build();
+        try (Response response = client.newCall(request).execute()) {
+            int code = response.code();
+
+            if (code < 200 || code >= 300) {
+                LOGGER.error("Failed Code: {}", code);
+                LOGGER.info(response.body().string());
+                throw new RuntimeException("Failed to create unit; Code: " + code);
+            }
+            return Unit.of(response.body().string());
+        } catch (IOException e) {
+            LOGGER.error("Connection failed", e);
+            throw new RuntimeException(e);
+        }
     }
 }

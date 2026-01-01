@@ -3,6 +3,7 @@ package dev.nilswitt.rk.edpmonitoring;
 import dev.nilswitt.rk.edpmonitoring.connectors.ApiConnector;
 import dev.nilswitt.rk.edpmonitoring.connectors.ConfigConnector;
 import dev.nilswitt.rk.edpmonitoring.connectors.MariaDBConnector;
+import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import dev.nilswitt.rk.edpmonitoring.threads.OutBoxWatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashSet;
 
 public class Main {
     private static final Logger logger = LogManager.getLogger(Main.class);
@@ -53,6 +56,29 @@ public class Main {
             System.err.println("Failed to create logs directory: " + e.getMessage());
             e.printStackTrace(System.err);
             // continue; logging may still work if directory exists or if configured differently
+        }
+
+        ArrayList<Unit> apiUnits = apiConnector.getAllUnits();
+        apiUnits.forEach(unit -> {
+            configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
+            logger.info("Mapped unit from API: {} -> {}", unit.getName(), unit.getId().toString());
+        });
+
+        if (configConnector.getConfigValue("db.units.upload", "API_SYNC_UNITS", "false").equalsIgnoreCase("true")) {
+            logger.info("Synchronizing units from API to database...");
+
+            HashSet<String> dbUnits = mariaDBConnector.getUnits();
+
+            for (String dbUnit : dbUnits) {
+                logger.info("Checking unit: {}", dbUnit);
+                if (apiUnits.stream().noneMatch(u -> u.getName().equals(dbUnit))) {
+                    logger.info("Unit '{}' exists in database but not in API; creating in API. ", dbUnit);
+                    Unit unit = apiConnector.createUnit(dbUnit);
+                    configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
+                }
+            }
+        } else {
+            logger.info("API unit synchronization is disabled.");
         }
 
         OutBoxWatcher.start(mariaDBConnector, apiConnector);
