@@ -1,5 +1,6 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
+import dev.nilswitt.rk.edpmonitoring.Utilities;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -9,7 +10,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Properties;
 
 public class ConfigConnector {
     private static final Logger logger = LogManager.getLogger(ConfigConnector.class);
@@ -27,7 +30,8 @@ public class ConfigConnector {
 
     private Properties loadConfig() {
         Properties props = new Properties();
-        Path cfgFile = Paths.get("config.properties");
+
+        Path cfgFile = Paths.get(Utilities.getCurrentWorkingDirectory().toString(), "config.properties");
         if (Files.exists(cfgFile)) {
             try (InputStream in = new FileInputStream(cfgFile.toFile())) {
                 props.load(in);
@@ -77,7 +81,7 @@ public class ConfigConnector {
         return defaultVal;
     }
 
-    public HashMap<String,String> getUnitMappings() {
+    public HashMap<String, String> getUnitMappings() {
         // Placeholder for method implementation
         return this.unitMapping;
     }

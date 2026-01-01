@@ -10,7 +10,6 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class ApiConnector {
@@ -101,7 +100,7 @@ public class ApiConnector {
     }
 
 
-    public ArrayList<Unit> getAllUnits(){
+    public ArrayList<Unit> getAllUnits() {
         ArrayList<Unit> units = new ArrayList<>();
         LOGGER.info("Getting all units");
 
@@ -114,7 +113,6 @@ public class ApiConnector {
         if (mediaType == null) {
             LOGGER.warn("Failed to parse media type");
         }
-
 
 
         Request request = new Request.Builder()

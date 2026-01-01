@@ -18,6 +18,10 @@ public class Main {
     private static final Logger logger = LogManager.getLogger(Main.class);
 
     public static void main(String[] args) {
+
+        logger.info("Working Directory: {}", Utilities.getCurrentWorkingDirectory());
+
+
         ConfigConnector configConnector = ConfigConnector.getInstance();
 
         String apiUrl = configConnector.getConfigValue("api.url", "API_URL", "http://localhost:8080/api");

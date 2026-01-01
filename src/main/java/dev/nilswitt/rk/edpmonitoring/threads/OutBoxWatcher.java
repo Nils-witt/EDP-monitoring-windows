@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 
 public class OutBoxWatcher implements Runnable {
 
-
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
     private static final Logger logger = LogManager.getLogger(OutBoxWatcher.class);
     private static MariaDBConnector mariaDBConnector;

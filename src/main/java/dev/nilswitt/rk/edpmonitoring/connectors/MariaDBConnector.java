@@ -1,6 +1,5 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
-import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -94,7 +93,7 @@ public class MariaDBConnector {
     }
 
 
-    public HashSet<String> getUnits(){
+    public HashSet<String> getUnits() {
         HashSet<String> units = new HashSet<>();
         String query = "SELECT RUFNAME FROM einsatzmittel WHERE FREMDFAHRZEUG = 0";
         ArrayList<WorkerOutbox> outbox = new ArrayList<>();
@@ -115,7 +114,7 @@ public class MariaDBConnector {
             LOGGER.error("Unexpected error: {}", e.getMessage(), e);
             System.exit(3);
         }
-        return  units;
+        return units;
     }
 
     public class WorkerOutbox {
