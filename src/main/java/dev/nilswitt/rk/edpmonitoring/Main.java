@@ -12,7 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Optional;
 
 public class Main {
     private static final Logger logger = LogManager.getLogger(Main.class);
@@ -20,7 +22,16 @@ public class Main {
     public static void main(String[] args) {
 
         logger.info("Working Directory: {}", Utilities.getCurrentWorkingDirectory());
+        logger.info("ARGS: {}", String.join(" ", args));
 
+        Optional<String> wkdArg = Arrays.stream(args).filter(u -> u.startsWith("WORK_DIR=")).findFirst();
+        if (wkdArg.isPresent()) {
+            String wkdPath = wkdArg.get().substring("WORK_DIR=".length());
+            System.setProperty("user.dir", wkdPath);
+            logger.info("Set working directory from argument: {}", wkdPath);
+        } else {
+            logger.info("No WORK_DIR argument provided; using default working directory.");
+        }
 
         ConfigConnector configConnector = ConfigConnector.getInstance();
 
