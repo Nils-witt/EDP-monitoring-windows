@@ -3,13 +3,13 @@ package dev.nilswitt.rk.edpmonitoring;
 import dev.nilswitt.rk.edpmonitoring.connectors.ApiConnector;
 import dev.nilswitt.rk.edpmonitoring.connectors.ConfigConnector;
 import dev.nilswitt.rk.edpmonitoring.connectors.MariaDBConnector;
+import dev.nilswitt.rk.edpmonitoring.threads.OutBoxWatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 
 public class Main {
     private static final Logger logger = LogManager.getLogger(Main.class);
@@ -55,33 +55,7 @@ public class Main {
             // continue; logging may still work if directory exists or if configured differently
         }
 
-        ArrayList<MariaDBConnector.WorkerOutbox> rows = mariaDBConnector.getWorkerOutbox();
-        logger.info("Fetched {} rows from worker_outbox:", rows.size());
+        OutBoxWatcher.start(mariaDBConnector, apiConnector);
 
-        System.exit(0); // Exit after tests for this example
-        return;
-        /*
-        Runnable helloRunnable = () -> getDBRows(url, user, pass);
-
-        final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-        executor.scheduleAtFixedRate(helloRunnable, 0, 3, TimeUnit.SECONDS);
-
-        // Ensure the executor is shut down on JVM exit
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.info("Shutdown requested; stopping executor...");
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    logger.warn("Executor did not terminate within timeout; forcing shutdown.");
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                logger.warn("Interrupted while waiting for executor to terminate", e);
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }));
-
-         */
     }
 }

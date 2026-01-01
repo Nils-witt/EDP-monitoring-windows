@@ -21,6 +21,21 @@ public class MariaDBConnector {
         this.pass = pass;
     }
 
+    public void removeFromOutbox(int id) {
+        try (Connection conn = DriverManager.getConnection(url, user, pass)) {
+            if (conn != null) {
+                String deleteQuery = "DELETE FROM webhook_outbox WHERE id = ?";
+                try (PreparedStatement myStmt = conn.prepareStatement(deleteQuery)) {
+                    myStmt.setInt(1, id);
+                    int rowsAffected = myStmt.executeUpdate();
+                    LOGGER.info("Removed {} row(s) from outbox with id={}", rowsAffected, id);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Connection test failed: {}", e.getMessage(), e);
+        }
+    }
+
     public boolean testConnection() {
         LOGGER.info("Connecting to MariaDB at " + url + " with user " + user);
         try (Connection conn = DriverManager.getConnection(url, user, pass)) {
@@ -65,7 +80,6 @@ public class MariaDBConnector {
                 );
                 outbox.add(wo);
             }
-
 
         } catch (SQLException e) {
             LOGGER.error("Database error: {}", e.getMessage(), e);
