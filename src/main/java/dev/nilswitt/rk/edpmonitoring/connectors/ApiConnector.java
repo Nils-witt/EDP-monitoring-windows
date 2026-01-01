@@ -7,28 +7,23 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
 import java.io.IOException;
-import java.util.HashMap;
 
 public class ApiConnector {
 
     private final String apiKey;
     private final String apiUrl;
     private static final Logger LOGGER = LogManager.getLogger(ApiConnector.class);
-    private static HashMap<String, String> unitNameAPIIDMap = new HashMap<>();
+    private final ConfigConnector configConnector;
 
-    public ApiConnector(String apiUrl, String apiKey) {
+    public ApiConnector(String apiUrl, String apiKey, ConfigConnector configConnector) {
         this.apiKey = apiKey;
         this.apiUrl = apiUrl;
 
-        if (unitNameAPIIDMap.isEmpty()) {
-            unitNameAPIIDMap.put("ELW", "9af2efeb-d71f-4cb1-98c1-f2a8414bb0e4");
-            unitNameAPIIDMap.put("UnitB", "api_id_456");
-            unitNameAPIIDMap.put("UnitC", "api_id_789");
-        }
+        this.configConnector = configConnector;
     }
 
-    public static String getApiIdForUnitName(String unitName) {
-        return unitNameAPIIDMap.get(unitName);
+    public String getApiIdForUnitName(String unitName) {
+        return configConnector.getUnitMappings().get(unitName);
     }
 
     public boolean testConnection() {

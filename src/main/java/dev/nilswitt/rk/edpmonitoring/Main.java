@@ -22,7 +22,7 @@ public class Main {
         String apiToken = configConnector.getConfigValue("api.token", "API_TOKEN", "default_token");
         logger.info("Using API Token: {}", apiToken.substring(0, 5));
 
-        ApiConnector apiConnector = new ApiConnector(apiUrl, apiToken);
+        ApiConnector apiConnector = new ApiConnector(apiUrl, apiToken, configConnector);
         if (apiConnector.testConnection()) {
             logger.info("API connection test successful.");
         } else {

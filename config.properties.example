@@ -15,3 +15,7 @@
 
 # Api Token
 # api.token=your_api_token_here
+
+# Set Unit Mapping
+# unit.[n].name=Unit Name
+# unit.[n].api_id=Unit ID
