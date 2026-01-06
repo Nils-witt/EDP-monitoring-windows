@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public class Unit {
 
-    private static Logger logger = LogManager.getLogger(Unit.class);
+    private static final Logger LOGGER = LogManager.getLogger(Unit.class);
 
     private UUID id;
     private String name;
@@ -45,10 +45,20 @@ public class Unit {
 
             return unit;
         } catch (Exception e) {
-            logger.error("of()", e.getMessage());
+            LOGGER.error("of()", e.getMessage());
             throw new RuntimeException(e);
         }
 
+    }
+
+    @Override
+    public String toString() {
+        return "Unit{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", status=" + status +
+                ", position=" + position +
+                '}';
     }
 
     public UUID getId() {

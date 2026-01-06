@@ -15,7 +15,7 @@ import java.util.HashSet;
 import java.util.Properties;
 
 public class ConfigConnector {
-    private static final Logger logger = LogManager.getLogger(ConfigConnector.class);
+    private static final Logger LOGGER = LogManager.getLogger(ConfigConnector.class);
     private static ConfigConnector instance = new ConfigConnector();
     private Properties props = new Properties();
     private HashMap<String, String> unitMapping = new HashMap<>();
@@ -35,12 +35,12 @@ public class ConfigConnector {
         if (Files.exists(cfgFile)) {
             try (InputStream in = new FileInputStream(cfgFile.toFile())) {
                 props.load(in);
-                logger.info("Loaded configuration from {}", cfgFile.toAbsolutePath());
+                LOGGER.info("Loaded configuration from {}", cfgFile.toAbsolutePath());
             } catch (IOException e) {
-                logger.warn("Failed to read config.properties: {}. Falling back to environment variables.", e.getMessage());
+                LOGGER.warn("Failed to read config.properties: {}. Falling back to environment variables.", e.getMessage());
             }
         } else {
-            logger.info("No config.properties found in working directory; using environment variables or defaults. " + cfgFile.toAbsolutePath().toString());
+            LOGGER.info("No config.properties found in working directory; using environment variables or defaults. " + cfgFile.toAbsolutePath().toString());
         }
         this.props = props;
 
@@ -60,9 +60,9 @@ public class ConfigConnector {
             String unitName = props.getProperty("units." + key + ".name");
             if (unitApiId != null && unitName != null) {
                 this.unitMapping.put(unitName, unitApiId);
-                logger.info("Loaded unit mapping: {} -> {}", unitName, unitApiId);
+                LOGGER.info("Loaded unit mapping: {} -> {}", unitName, unitApiId);
             } else {
-                logger.warn("Incomplete unit mapping for key {}: api_id or name missing", key);
+                LOGGER.warn("Incomplete unit mapping for key {}: api_id or name missing", key);
             }
         }
         return props;

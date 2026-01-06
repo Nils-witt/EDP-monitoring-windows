@@ -13,17 +13,14 @@ import java.util.concurrent.TimeUnit;
 public class OutBoxWatcher implements Runnable {
 
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-    private static final Logger logger = LogManager.getLogger(OutBoxWatcher.class);
+    private static final Logger LOGGER = LogManager.getLogger(OutBoxWatcher.class);
     private static MariaDBConnector mariaDBConnector;
     private static ApiConnector apiConnector;
 
     @Override
     public void run() {
         ArrayList<MariaDBConnector.WorkerOutbox> rows = mariaDBConnector.getWorkerOutbox();
-        logger.debug("Fetched {} rows from worker_outbox:", rows.size());
         for (MariaDBConnector.WorkerOutbox row : rows) {
-            logger.info("Outbox ID: {}, PK: {}, Payload: {}, Created At: {}, Status: {}, Correlation ID: {}",
-                    row.id, row.pk, row.payload, row.createdAt, row.status, row.correlationId);
             apiConnector.processOutboxRow(row);
             mariaDBConnector.removeFromOutbox(row.id);
         }
@@ -40,15 +37,12 @@ public class OutBoxWatcher implements Runnable {
         OutBoxWatcher.apiConnector = apiConnector;
         executor.scheduleAtFixedRate(new OutBoxWatcher(), 0, 3, TimeUnit.SECONDS);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.info("Shutdown requested; stopping executor...");
             executor.shutdown();
             try {
                 if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    logger.warn("Executor did not terminate within timeout; forcing shutdown.");
                     executor.shutdownNow();
                 }
             } catch (InterruptedException e) {
-                logger.warn("Interrupted while waiting for executor to terminate", e);
                 executor.shutdownNow();
                 Thread.currentThread().interrupt();
             }

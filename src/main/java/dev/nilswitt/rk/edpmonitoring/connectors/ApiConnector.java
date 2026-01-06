@@ -37,24 +37,26 @@ public class ApiConnector {
     }
 
     public boolean testConnection() {
-        LOGGER.info("Connecting to API at " + apiUrl);
 
         if (apiUrl == null || apiUrl.isEmpty()) {
-            LOGGER.warn("apiUrl is empty or null");
+            LOGGER.warn("testConnection: apiUrl is null or empty");
             return false;
         }
 
         if (this.apiKey == null || this.apiKey.isEmpty()) {
+            LOGGER.debug("testConnection: apiKey missing, attempting login");
             this.login();
         }
         if (this.apiKey == null || this.apiKey.isEmpty()) {
-            LOGGER.warn("apiKey is empty or null");
+            LOGGER.warn("testConnection: apiKey is empty or null after login");
             return false;
         }
+
+        LOGGER.info("testConnection: verifying token at {}", apiUrl + "/token/verify/");
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.warn("Failed to parse media type");
+            LOGGER.warn("testConnection: Failed to parse media type");
             return false;
         }
 
@@ -70,25 +72,25 @@ public class ApiConnector {
 
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
+            LOGGER.info("testConnection: received response code {}", code);
             return code >= 200 && code < 300;
         } catch (IOException e) {
-            LOGGER.error("Connection test failed", e);
+            LOGGER.error("testConnection: IOException while testing connection to {}", apiUrl, e);
             return false;
         }
     }
 
     public String login() {
         if (this.apiUrl == null || this.apiUrl.isEmpty()) {
-            LOGGER.warn("apiUrl is empty or null");
+            LOGGER.warn("login: apiUrl is null or empty");
             return null;
         }
 
-        LOGGER.info("Logging in to API at " + this.apiUrl + " with username " + this.username);
-
+        LOGGER.info("login: attempting to authenticate user '{}' at {}", this.username, this.apiUrl);
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.warn("Failed to parse media type");
+            LOGGER.error("login: Failed to parse media type");
             return null;
         }
 
@@ -105,77 +107,80 @@ public class ApiConnector {
 
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
+            LOGGER.info("login: received response code {}", code);
             if (code >= 200 && code < 300) {
                 String res = response.body().string();
                 JSONObject resJson = (JSONObject) new JSONParser().parse(res);
                 String token = (String) resJson.get("access");
-                LOGGER.info("Login successful, obtained token");
                 this.apiKey = token;
+                LOGGER.info("login: authentication successful for user '{}'", this.username);
                 return token;
             }
+            LOGGER.warn("login: authentication failed; Code: {}", code);
             return null;
         } catch (IOException | ParseException e) {
-            LOGGER.error("Connection test failed", e);
+            LOGGER.error("login: Exception during authentication for user '{}'", this.username, e);
             return null;
         }
     }
 
 
     private void setUnitStatus(String unitId, int status) {
-        LOGGER.info("Setting status of unit " + unitId + " to " + status);
+        LOGGER.info("setUnitStatus: Setting status of unit {} to {}", unitId, status);
         if (apiUrl == null || apiUrl.isEmpty()) {
-            LOGGER.warn("apiUrl is empty or null");
+            LOGGER.warn("setUnitStatus: apiUrl is null or empty");
         }
 
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.warn("Failed to parse media type");
+            LOGGER.error("setUnitStatus: Failed to parse media type");
         }
 
         JSONObject json = new JSONObject();
         json.put("unit_status", status);
         RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
 
+        String endpoint = apiUrl + "/units/{}/".replace("{}", unitId);
+        LOGGER.debug("setUnitStatus: PATCH {}", endpoint);
         Request request = new Request.Builder()
-                .url(apiUrl + "/units/{}/".replace("{}", unitId))
+                .url(endpoint)
                 .patch(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .build();
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
+            LOGGER.info("setUnitStatus: response code {}", code);
 
             if (code == 401) {
-                LOGGER.info("Unauthorized, trying to login again");
+                LOGGER.info("setUnitStatus: unauthorized, attempting re-login and retry");
                 this.login();
                 setUnitStatus(unitId, status);
                 return;
             }
             if (code < 200 || code >= 300) {
-                LOGGER.error(String.format("Failed to set status of unit %s to %d; Code: %d", unitId, status, code));
-                LOGGER.info(response.body().string());
+                LOGGER.error("setUnitStatus: Failed to set status for unit {}; Code: {}", unitId, code);
             }
         } catch (IOException e) {
-            LOGGER.error("Connection failed", e);
+            LOGGER.error("setUnitStatus: IOException while updating unit {}", unitId, e);
         }
     }
 
 
     public ArrayList<Unit> getAllUnits() {
         ArrayList<Unit> units = new ArrayList<>();
-        LOGGER.info("Getting all units");
 
         if (apiUrl == null || apiUrl.isEmpty()) {
-            LOGGER.warn("apiUrl is empty or null");
+            LOGGER.warn("getAllUnits: apiUrl is null or empty");
         }
 
+        LOGGER.info("getAllUnits: requesting units from {}", apiUrl + "/units/");
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.warn("Failed to parse media type");
+            LOGGER.warn("getAllUnits: Failed to parse media type");
         }
-
 
         Request request = new Request.Builder()
                 .url(apiUrl + "/units/")
@@ -185,15 +190,14 @@ public class ApiConnector {
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
             String responseBody = response.body().string();
-            LOGGER.info(responseBody);
+            LOGGER.debug("getAllUnits: response code {}, body: {}", code, responseBody);
             if (code == 401) {
-                LOGGER.info("Unauthorized, trying to login again");
+                LOGGER.info("getAllUnits: unauthorized, attempting re-login");
                 this.login();
                 return getAllUnits();
             }
             if (code < 200 || code >= 300) {
-                LOGGER.error(String.format("Failed to get units; Code: %d", code));
-
+                LOGGER.error("getAllUnits: Failed to get units; Code: {}", code);
             }
             JSONArray jsonArray = (JSONArray) new JSONParser().parse(responseBody);
             for (Object o : jsonArray) {
@@ -202,8 +206,9 @@ public class ApiConnector {
                 units.add(unit);
             }
         } catch (IOException e) {
-            LOGGER.error("Connection failed", e);
+            LOGGER.error("getAllUnits: Connection failed", e);
         } catch (ParseException e) {
+            LOGGER.error("getAllUnits: Failed to parse units response", e);
             throw new RuntimeException(e);
         }
 
@@ -216,17 +221,14 @@ public class ApiConnector {
     }
 
     public void processOutboxRow(MariaDBConnector.WorkerOutbox row) {
-        LOGGER.info("Processing outbox row " + row.id);
         String payload = row.payload;
         String unitPK = row.pk;
         JSONParser parser = new JSONParser();
         try {
             Unit unit = new Unit(UUID.fromString(getApiIdForUnitName(unitPK)), unitPK);
             JSONObject json = (JSONObject) parser.parse(payload);
-            System.out.println("Parsed JSON: " + json.toJSONString());
             if (json.containsKey("NEW_STATUS") && json.containsKey("OLD_STATUS")) {
                 if (!json.get("OLD_STATUS").toString().equalsIgnoreCase(json.get("NEW_STATUS").toString())) {
-                    LOGGER.info("Found NEW_STATUS in payload for outbox row " + row.id);
                     int newStatus = Integer.parseInt(json.get("NEW_STATUS").toString());
                     unit.setStatus(newStatus);
                 }
@@ -234,10 +236,8 @@ public class ApiConnector {
             if (json.containsKey("OLD_KOORDX") && json.containsKey("NEW_KOORDX") && json.containsKey("OLD_KOORDY") && json.containsKey("NEW_KOORDY")) {
                 if (!json.get("OLD_KOORDX").toString().equalsIgnoreCase(json.get("NEW_KOORDX").toString()) ||
                         !json.get("OLD_KOORDY").toString().equalsIgnoreCase(json.get("NEW_KOORDY").toString())) {
-                    LOGGER.info("Found coordinate change in payload for outbox row " + row.id);
                     double newLat = Double.parseDouble(json.get("NEW_KOORDY").toString());
                     double newLng = Double.parseDouble(json.get("NEW_KOORDX").toString());
-                    LOGGER.info("New coordinates: " + newLat + ", " + newLng);
                     unit.setPosition(new LngLat(newLng, newLat));
                 }
             }
@@ -245,22 +245,22 @@ public class ApiConnector {
             updateUnit(unit);
 
         } catch (Exception e) {
-            LOGGER.error("Failed to parse JSON payload for outbox row " + row.id, e);
+            LOGGER.error("processOutboxRow: failed to process outbox row for pk={}", row.pk, e);
         }
 
 
     }
 
     public Unit createUnit(Unit unit) {
-        LOGGER.info("Creating unit " + unit.getName());
         if (apiUrl == null || apiUrl.isEmpty()) {
-            LOGGER.warn("apiUrl is empty or null");
+            LOGGER.warn("createUnit: apiUrl is null or empty");
         }
 
+        LOGGER.info("createUnit: creating unit '{}'", unit.getName());
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.warn("Failed to parse media type");
+            LOGGER.error("createUnit: Failed to parse media type");
         }
 
         JSONObject json = new JSONObject();
@@ -282,29 +282,31 @@ public class ApiConnector {
                 .build();
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
+            LOGGER.info("createUnit: response code {}", code);
 
             if (code == 401) {
-                LOGGER.info("Unauthorized, trying to login again");
+                LOGGER.info("createUnit: unauthorized, attempting re-login");
                 this.login();
                 return createUnit(unit);
             }
             if (code < 200 || code >= 300) {
-                LOGGER.error("Failed Code: {}", code);
-                LOGGER.info(response.body().string());
+                LOGGER.error("createUnit: Failed to create unit '{}'; Code: {}", unit.getName(), code);
                 throw new RuntimeException("Failed to create unit; Code: " + code);
             }
+            LOGGER.info("createUnit: unit '{}' created successfully", unit.getName());
             return Unit.of(response.body().string());
         } catch (IOException e) {
-            LOGGER.error("Connection failed", e);
+            LOGGER.error("createUnit: IOException while creating unit '{}'", unit.getName(), e);
             throw new RuntimeException(e);
         }
     }
 
     public Unit updateUnit(Unit unit) {
+        LOGGER.info("updateUnit: updating unit id={}", unit.getId());
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
-            LOGGER.warn("Failed to parse media type");
+            LOGGER.error("updateUnit: Failed to parse media type");
         }
 
         JSONObject json = new JSONObject();
@@ -325,17 +327,21 @@ public class ApiConnector {
                 .build();
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
+            LOGGER.info("updateUnit: response code {}", code);
 
             if (code == 401) {
+                LOGGER.info("updateUnit: unauthorized, attempting re-login");
                 this.login();
                 return updateUnit(unit);
             }
             if (code < 200 || code >= 300) {
+                LOGGER.error("updateUnit: Failed to update unit {}; Code: {}", unit.getId(), code);
                 throw new RuntimeException("Failed to create unit; Code: " + code);
             }
+            LOGGER.info("updateUnit: unit {} updated successfully", unit.getId());
             return Unit.of(response.body().string());
         } catch (IOException e) {
-            LOGGER.error("Connection failed", e);
+            LOGGER.error("updateUnit: IOException while updating unit {}", unit.getId(), e);
             throw new RuntimeException(e);
         }
     }
