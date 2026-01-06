@@ -13,9 +13,11 @@
 # Api Url
 # api.url=http://
 
+# Use Api Token or Username/Password for authentication
 # Api Token
 # api.token=your_api_token_here
-
+# api.username=
+# api.password=
 # Set Unit Mapping
 # unit.[n].name=Unit Name
 # unit.[n].api_id=Unit ID

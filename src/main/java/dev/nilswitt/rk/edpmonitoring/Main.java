@@ -36,11 +36,18 @@ public class Main {
         ConfigConnector configConnector = ConfigConnector.getInstance();
 
         String apiUrl = configConnector.getConfigValue("api.url", "API_URL", "http://localhost:8080/api");
-        logger.info("Using API URL: {}", apiUrl);
-        String apiToken = configConnector.getConfigValue("api.token", "API_TOKEN", "default_token");
-        logger.info("Using API Token: {}", apiToken.substring(0, 5));
+        String apiToken = configConnector.getConfigValue("api.token", "API_TOKEN", null);
+        String apiUsername = configConnector.getConfigValue("api.username", "API_TOKEN", null);
+        String apiPassword = configConnector.getConfigValue("api.password", "API_TOKEN", null);
 
-        ApiConnector apiConnector = new ApiConnector(apiUrl, apiToken, configConnector);
+        logger.info("Using API URL: {}", apiUrl);
+
+        if (apiToken == null || apiToken.isEmpty()) {
+            logger.info("No API TOKEN provided; using credentials for login.");
+        } else {
+            logger.info("Using API Token: {}", apiToken.substring(0, 5));
+        }
+        ApiConnector apiConnector = new ApiConnector(apiUrl, apiToken, apiUsername, apiPassword, configConnector);
         if (apiConnector.testConnection()) {
             logger.info("API connection test successful.");
         } else {

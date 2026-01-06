@@ -14,14 +14,18 @@ import java.util.ArrayList;
 
 public class ApiConnector {
 
-    private final String apiKey;
+    private String apiKey;
     private final String apiUrl;
+    private final String username;
+    private final String password;
     private static final Logger LOGGER = LogManager.getLogger(ApiConnector.class);
     private final ConfigConnector configConnector;
 
-    public ApiConnector(String apiUrl, String apiKey, ConfigConnector configConnector) {
+    public ApiConnector(String apiUrl, String apiKey, String username, String password, ConfigConnector configConnector) {
         this.apiKey = apiKey;
         this.apiUrl = apiUrl;
+        this.username = username;
+        this.password = password;
 
         this.configConnector = configConnector;
     }
@@ -31,13 +35,20 @@ public class ApiConnector {
     }
 
     public boolean testConnection() {
-        LOGGER.info("Connecting to API at " + apiUrl + " with key " + apiKey.substring(0, 5) + "*****");
+        LOGGER.info("Connecting to API at " + apiUrl);
 
         if (apiUrl == null || apiUrl.isEmpty()) {
             LOGGER.warn("apiUrl is empty or null");
             return false;
         }
 
+        if (this.apiKey == null || this.apiKey.isEmpty()) {
+            this.login();
+        }
+        if (this.apiKey == null || this.apiKey.isEmpty()) {
+            LOGGER.warn("apiKey is empty or null");
+            return false;
+        }
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
@@ -61,6 +72,49 @@ public class ApiConnector {
         } catch (IOException e) {
             LOGGER.error("Connection test failed", e);
             return false;
+        }
+    }
+
+    public String login() {
+        if (this.apiUrl == null || this.apiUrl.isEmpty()) {
+            LOGGER.warn("apiUrl is empty or null");
+            return null;
+        }
+
+        LOGGER.info("Logging in to API at " + this.apiUrl + " with username " + this.username);
+
+        OkHttpClient client = new OkHttpClient.Builder().build();
+        MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+        if (mediaType == null) {
+            LOGGER.warn("Failed to parse media type");
+            return null;
+        }
+
+        JSONObject json = new JSONObject();
+        json.put("username", this.username);
+        json.put("password", this.password);
+        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+
+        Request request = new Request.Builder()
+                .url(this.apiUrl + "/token/")
+                .post(body)
+                .addHeader("Content-Type", "application/json")
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            int code = response.code();
+            if (code >= 200 && code < 300) {
+                String res = response.body().string();
+                JSONObject resJson = (JSONObject) new JSONParser().parse(res);
+                String token = (String) resJson.get("access");
+                LOGGER.info("Login successful, obtained token");
+                this.apiKey = token;
+                return token;
+            }
+            return null;
+        } catch (IOException | ParseException e) {
+            LOGGER.error("Connection test failed", e);
+            return null;
         }
     }
 
@@ -90,6 +144,12 @@ public class ApiConnector {
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
 
+            if (code == 401) {
+                LOGGER.info("Unauthorized, trying to login again");
+                this.login();
+                setUnitStatus(unitId, status);
+                return;
+            }
             if (code < 200 || code >= 300) {
                 LOGGER.error(String.format("Failed to set status of unit %s to %d; Code: %d", unitId, status, code));
                 LOGGER.info(response.body().string());
@@ -124,6 +184,11 @@ public class ApiConnector {
             int code = response.code();
             String responseBody = response.body().string();
             LOGGER.info(responseBody);
+            if (code == 401) {
+                LOGGER.info("Unauthorized, trying to login again");
+                this.login();
+                return getAllUnits();
+            }
             if (code < 200 || code >= 300) {
                 LOGGER.error(String.format("Failed to get units; Code: %d", code));
 
@@ -196,6 +261,11 @@ public class ApiConnector {
         try (Response response = client.newCall(request).execute()) {
             int code = response.code();
 
+            if (code == 401) {
+                LOGGER.info("Unauthorized, trying to login again");
+                this.login();
+                return createUnit(name);
+            }
             if (code < 200 || code >= 300) {
                 LOGGER.error("Failed Code: {}", code);
                 LOGGER.info(response.body().string());
