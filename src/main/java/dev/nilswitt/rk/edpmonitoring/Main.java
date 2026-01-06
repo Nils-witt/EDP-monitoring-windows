@@ -83,20 +83,25 @@ public class Main {
         ArrayList<Unit> apiUnits = apiConnector.getAllUnits();
         apiUnits.forEach(unit -> {
             configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
-            logger.info("Mapped unit from API: ({}) -> ({})", unit.getName(), unit.getId().toString());
         });
 
         if (configConnector.getConfigValue("db.units.upload", "API_SYNC_UNITS", "false").equalsIgnoreCase("true")) {
             logger.info("Synchronizing units from API to database...");
 
-            HashSet<String> dbUnits = mariaDBConnector.getUnits();
+            HashSet<Unit> dbUnits = mariaDBConnector.getUnits();
 
-            for (String dbUnit : dbUnits) {
-                logger.info("Checking unit: ({})", dbUnit);
-                if (apiUnits.stream().noneMatch(u -> u.getName().equals(dbUnit))) {
+            for (Unit dbUnit : dbUnits) {
+                logger.info("Checking unit: ({})", dbUnit.getName());
+                if (apiUnits.stream().noneMatch(u -> u.getName().equals(dbUnit.getName()))) {
                     logger.info("Unit '{}' exists in database but not in API; creating in API. ", dbUnit);
                     Unit unit = apiConnector.createUnit(dbUnit);
                     configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
+                }else{
+                    apiUnits.stream().filter(u -> u.getName().equals(dbUnit.getName())).findFirst().ifPresent(u -> {
+                        logger.info("Unit '{}' exists in both database and API; skipping creation.", dbUnit.getName());
+                        dbUnit.setId(u.getId());
+                        apiConnector.updateUnit(dbUnit);
+                    });
                 }
             }
         } else {

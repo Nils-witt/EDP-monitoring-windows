@@ -1,5 +1,6 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
+import dev.nilswitt.rk.edpmonitoring.enitites.LngLat;
 import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
@@ -11,6 +12,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class ApiConnector {
 
@@ -219,15 +221,28 @@ public class ApiConnector {
         String unitPK = row.pk;
         JSONParser parser = new JSONParser();
         try {
+            Unit unit = new Unit(UUID.fromString(getApiIdForUnitName(unitPK)), unitPK);
             JSONObject json = (JSONObject) parser.parse(payload);
             System.out.println("Parsed JSON: " + json.toJSONString());
-
-            if (json.containsKey("NEW_STATUS")) {
-                LOGGER.info("Found NEW_STATUS in payload for outbox row " + row.id);
-                int newStatus = Integer.parseInt(json.get("NEW_STATUS").toString());
-                LOGGER.info("New status: " + newStatus);
-                setUnitStatus(getApiIdForUnitName(unitPK), newStatus);
+            if (json.containsKey("NEW_STATUS") && json.containsKey("OLD_STATUS")) {
+                if (!json.get("OLD_STATUS").toString().equalsIgnoreCase(json.get("NEW_STATUS").toString())) {
+                    LOGGER.info("Found NEW_STATUS in payload for outbox row " + row.id);
+                    int newStatus = Integer.parseInt(json.get("NEW_STATUS").toString());
+                    unit.setStatus(newStatus);
+                }
             }
+            if (json.containsKey("OLD_KOORDX") && json.containsKey("NEW_KOORDX") && json.containsKey("OLD_KOORDY") && json.containsKey("NEW_KOORDY")) {
+                if (!json.get("OLD_KOORDX").toString().equalsIgnoreCase(json.get("NEW_KOORDX").toString()) ||
+                        !json.get("OLD_KOORDY").toString().equalsIgnoreCase(json.get("NEW_KOORDY").toString())) {
+                    LOGGER.info("Found coordinate change in payload for outbox row " + row.id);
+                    double newLat = Double.parseDouble(json.get("NEW_KOORDY").toString());
+                    double newLng = Double.parseDouble(json.get("NEW_KOORDX").toString());
+                    LOGGER.info("New coordinates: " + newLat + ", " + newLng);
+                    unit.setPosition(new LngLat(newLng, newLat));
+                }
+            }
+
+            updateUnit(unit);
 
         } catch (Exception e) {
             LOGGER.error("Failed to parse JSON payload for outbox row " + row.id, e);
@@ -236,8 +251,8 @@ public class ApiConnector {
 
     }
 
-    public Unit createUnit(String name) {
-        LOGGER.info("Creating unit " + name);
+    public Unit createUnit(Unit unit) {
+        LOGGER.info("Creating unit " + unit.getName());
         if (apiUrl == null || apiUrl.isEmpty()) {
             LOGGER.warn("apiUrl is empty or null");
         }
@@ -249,7 +264,14 @@ public class ApiConnector {
         }
 
         JSONObject json = new JSONObject();
-        json.put("name", name);
+        json.put("name", unit.getName());
+        if (unit.getPosition() != null) {
+            json.put("latitude", unit.getPosition().getLatitude());
+            json.put("longitude", unit.getPosition().getLongitude());
+        }
+        if (unit.getStatus() >= 0 && unit.getStatus() < 10) {
+            json.put("unit_status", unit.getStatus());
+        }
         RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
 
         Request request = new Request.Builder()
@@ -264,11 +286,51 @@ public class ApiConnector {
             if (code == 401) {
                 LOGGER.info("Unauthorized, trying to login again");
                 this.login();
-                return createUnit(name);
+                return createUnit(unit);
             }
             if (code < 200 || code >= 300) {
                 LOGGER.error("Failed Code: {}", code);
                 LOGGER.info(response.body().string());
+                throw new RuntimeException("Failed to create unit; Code: " + code);
+            }
+            return Unit.of(response.body().string());
+        } catch (IOException e) {
+            LOGGER.error("Connection failed", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Unit updateUnit(Unit unit) {
+        OkHttpClient client = new OkHttpClient.Builder().build();
+        MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
+        if (mediaType == null) {
+            LOGGER.warn("Failed to parse media type");
+        }
+
+        JSONObject json = new JSONObject();
+        if (unit.getPosition() != null) {
+            json.put("latitude", unit.getPosition().getLatitude());
+            json.put("longitude", unit.getPosition().getLongitude());
+        }
+        if (unit.getStatus() >= 0 && unit.getStatus() < 10) {
+            json.put("unit_status", unit.getStatus());
+        }
+        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+
+        Request request = new Request.Builder()
+                .url(apiUrl + "/units/" + unit.getId().toString() + "/")
+                .patch(body)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer " + apiKey)
+                .build();
+        try (Response response = client.newCall(request).execute()) {
+            int code = response.code();
+
+            if (code == 401) {
+                this.login();
+                return updateUnit(unit);
+            }
+            if (code < 200 || code >= 300) {
                 throw new RuntimeException("Failed to create unit; Code: " + code);
             }
             return Unit.of(response.body().string());

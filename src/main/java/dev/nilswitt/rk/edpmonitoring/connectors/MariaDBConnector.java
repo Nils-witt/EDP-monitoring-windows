@@ -1,5 +1,7 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
+import dev.nilswitt.rk.edpmonitoring.enitites.LngLat;
+import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -93,9 +95,9 @@ public class MariaDBConnector {
     }
 
 
-    public HashSet<String> getUnits() {
-        HashSet<String> units = new HashSet<>();
-        String query = "SELECT RUFNAME FROM einsatzmittel WHERE FREMDFAHRZEUG = 0";
+    public HashSet<Unit> getUnits() {
+        HashSet<Unit> units = new HashSet<>();
+        String query = "SELECT RUFNAME,KOORDX,KOORDY,STATUS FROM einsatzmittel WHERE FREMDFAHRZEUG = 0";
         ArrayList<WorkerOutbox> outbox = new ArrayList<>();
         try (Connection conn = DriverManager.getConnection(url, user, pass);
              Statement stmt = conn.createStatement();
@@ -103,8 +105,13 @@ public class MariaDBConnector {
 
             while (rs.next()) {
                 String name = rs.getString("RUFNAME");
+                LngLat lat = new LngLat(rs.getDouble("KOORDX"), rs.getDouble("KOORDY"));
+                int status = rs.getInt("STATUS");
+                Unit unit = new Unit(null, name.trim());
+                unit.setPosition(lat);
+                unit.setStatus(status);
                 LOGGER.info("Found unit: {}", name.trim());
-                units.add(name);
+                units.add(unit);
             }
 
         } catch (SQLException e) {

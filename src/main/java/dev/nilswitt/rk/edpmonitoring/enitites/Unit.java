@@ -13,6 +13,8 @@ public class Unit {
 
     private UUID id;
     private String name;
+    private int status = -1;
+    private LngLat position = null;
 
     public Unit(UUID id, String name) {
         this.id = id;
@@ -26,10 +28,22 @@ public class Unit {
             JSONObject jsonObject = (JSONObject) parser.parse(json);
             UUID id = UUID.fromString((String) jsonObject.get("id"));
             String name = (String) jsonObject.get("name");
+
             if (name == null || name.isEmpty()) {
                 throw new IllegalArgumentException("Unit name is missing in JSON");
             }
-            return new Unit(id, name.trim());
+            Unit unit = new Unit(id, name.trim());
+            Long status = (Long) jsonObject.get("unit_status");
+            if (status != null) {
+                unit.setStatus(status.intValue());
+            }
+            Double lat = (Double) jsonObject.get("latitude");
+            Double lng = (Double) jsonObject.get("longitude");
+            if (lat != null && lng != null) {
+                unit.setPosition(new LngLat(lng, lat));
+            }
+
+            return unit;
         } catch (Exception e) {
             logger.error("of()", e.getMessage());
             throw new RuntimeException(e);
@@ -52,4 +66,22 @@ public class Unit {
     public void setName(String name) {
         this.name = name;
     }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
+    }
+
+    public LngLat getPosition() {
+        return position;
+    }
+
+    public void setPosition(LngLat position) {
+        this.position = position;
+    }
+
+
 }
