@@ -1,9 +1,10 @@
 package dev.nilswitt.rk.edpmonitoring;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Utilities {
 

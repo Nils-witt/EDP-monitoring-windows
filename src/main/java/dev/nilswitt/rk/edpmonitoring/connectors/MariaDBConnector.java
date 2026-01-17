@@ -1,6 +1,6 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
-import dev.nilswitt.rk.edpmonitoring.enitites.LngLat;
+import dev.nilswitt.rk.edpmonitoring.enitites.Position;
 import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -105,7 +105,7 @@ public class MariaDBConnector {
 
             while (rs.next()) {
                 String name = rs.getString("RUFNAME");
-                LngLat lat = new LngLat(rs.getDouble("KOORDX"), rs.getDouble("KOORDY"));
+                Position lat = new Position(rs.getDouble("KOORDX"), rs.getDouble("KOORDY"));
                 int status = rs.getInt("STATUS");
                 Unit unit = new Unit(null, name.trim());
                 unit.setPosition(lat);

@@ -82,8 +82,10 @@ public class Main {
 
         ArrayList<Unit> apiUnits = apiConnector.getAllUnits();
         apiUnits.forEach(unit -> {
-            configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
+            configConnector.getUnitMappings().put(unit.getName(), unit.getId());
+            configConnector.getUnits().put(unit.getId(), unit);
         });
+        LOGGER.info("Found {} units in API.", apiUnits.size());
 
         if (configConnector.getConfigValue("db.units.upload", "API_SYNC_UNITS", "false").equalsIgnoreCase("true")) {
             LOGGER.info("Synchronizing units from API to database...");
@@ -95,12 +97,17 @@ public class Main {
                 if (apiUnits.stream().noneMatch(u -> u.getName().equals(dbUnit.getName()))) {
                     LOGGER.info("Unit '{}' exists in database but not in API; creating in API. ", dbUnit);
                     Unit unit = apiConnector.createUnit(dbUnit);
-                    configConnector.getUnitMappings().put(unit.getName(), unit.getId().toString());
-                }else{
-                    apiUnits.stream().filter(u -> u.getName().equals(dbUnit.getName())).findFirst().ifPresent(u -> {
+                    configConnector.getUnitMappings().put(unit.getName(), unit.getId());
+                    configConnector.getUnits().put(unit.getId(), unit);
+                } else {
+                    apiUnits.stream().filter(u -> u.getName().equals(dbUnit.getName())).findFirst().ifPresent(unit -> {
                         LOGGER.info("Unit '{}' exists in both database and API; skipping creation.", dbUnit.getName());
-                        dbUnit.setId(u.getId());
-                        apiConnector.updateUnit(dbUnit);
+                        configConnector.getUnits().put(unit.getId(), unit);
+                        configConnector.getUnitMappings().put(unit.getName(), unit.getId());
+
+                        unit.setStatus(dbUnit.getStatus());
+                        unit.setPosition(dbUnit.getPosition());
+                        apiConnector.updateUnit(unit);
                     });
                 }
             }

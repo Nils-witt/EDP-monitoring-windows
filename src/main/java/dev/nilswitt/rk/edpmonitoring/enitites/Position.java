@@ -1,17 +1,16 @@
 package dev.nilswitt.rk.edpmonitoring.enitites;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+public class Position {
 
-public class LngLat {
-
-    private static final Logger LOGGER = LogManager.getLogger(LngLat.class);
     private double longitude;
     private double latitude;
 
-    public LngLat(double longitude, double latitude) {
+    public Position(double longitude, double latitude) {
         this.longitude = longitude;
         this.latitude = latitude;
+    }
+    public Position() {
+
     }
 
     public double getLongitude() {
@@ -24,7 +23,7 @@ public class LngLat {
 
     @Override
     public String toString() {
-        return "LngLat{" +
+        return "Position{" +
                 "longitude=" + longitude +
                 ", latitude=" + latitude +
                 '}';

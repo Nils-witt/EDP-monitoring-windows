@@ -1,17 +1,18 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
-import dev.nilswitt.rk.edpmonitoring.enitites.LngLat;
+import dev.nilswitt.rk.edpmonitoring.connectors.apiRecords.ApiResponse;
+import dev.nilswitt.rk.edpmonitoring.connectors.apiRecords.LoginPayload;
+import dev.nilswitt.rk.edpmonitoring.connectors.apiRecords.LoginResponse;
+import dev.nilswitt.rk.edpmonitoring.enitites.Position;
 import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import okhttp3.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.UUID;
 
 public class ApiConnector {
@@ -22,6 +23,7 @@ public class ApiConnector {
     private final String password;
     private static final Logger LOGGER = LogManager.getLogger(ApiConnector.class);
     private final ConfigConnector configConnector;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public ApiConnector(String apiUrl, String apiKey, String username, String password, ConfigConnector configConnector) {
         this.apiKey = apiKey;
@@ -30,10 +32,6 @@ public class ApiConnector {
         this.password = password;
 
         this.configConnector = configConnector;
-    }
-
-    public String getApiIdForUnitName(String unitName) {
-        return configConnector.getUnitMappings().get(unitName);
     }
 
     public boolean testConnection() {
@@ -52,7 +50,7 @@ public class ApiConnector {
             return false;
         }
 
-        LOGGER.info("testConnection: verifying token at {}", apiUrl + "/token/verify/");
+        LOGGER.info("testConnection: verifying token at {}", apiUrl + "/token/");
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
@@ -60,14 +58,11 @@ public class ApiConnector {
             return false;
         }
 
-        JSONObject json = new JSONObject();
-        json.put("token", apiKey);
-        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
-
         Request request = new Request.Builder()
-                .url(apiUrl + "/token/verify/")
-                .post(body)
+                .url(apiUrl + "/token")
+                .get()
                 .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer " + this.apiKey)
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
@@ -94,13 +89,12 @@ public class ApiConnector {
             return null;
         }
 
-        JSONObject json = new JSONObject();
-        json.put("username", this.username);
-        json.put("password", this.password);
-        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+
+        LoginPayload payload = new LoginPayload(this.username, this.password);
+        RequestBody body = RequestBody.create(mapper.writeValueAsString(payload), mediaType);
 
         Request request = new Request.Builder()
-                .url(this.apiUrl + "/token/")
+                .url(this.apiUrl + "/token")
                 .post(body)
                 .addHeader("Content-Type", "application/json")
                 .build();
@@ -109,16 +103,15 @@ public class ApiConnector {
             int code = response.code();
             LOGGER.info("login: received response code {}", code);
             if (code >= 200 && code < 300) {
-                String res = response.body().string();
-                JSONObject resJson = (JSONObject) new JSONParser().parse(res);
-                String token = (String) resJson.get("access");
-                this.apiKey = token;
+                LoginResponse res = mapper.readValue(response.body().string(), LoginResponse.class);
+
+                this.apiKey = res.token();
                 LOGGER.info("login: authentication successful for user '{}'", this.username);
-                return token;
+                return res.token();
             }
             LOGGER.warn("login: authentication failed; Code: {}", code);
             return null;
-        } catch (IOException | ParseException e) {
+        } catch (IOException e) {
             LOGGER.error("login: Exception during authentication for user '{}'", this.username, e);
             return null;
         }
@@ -137,9 +130,7 @@ public class ApiConnector {
             LOGGER.error("setUnitStatus: Failed to parse media type");
         }
 
-        JSONObject json = new JSONObject();
-        json.put("unit_status", status);
-        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+        RequestBody body = RequestBody.create("json.toJSONString()", mediaType);
 
         String endpoint = apiUrl + "/units/{}/".replace("{}", unitId);
         LOGGER.debug("setUnitStatus: PATCH {}", endpoint);
@@ -175,7 +166,7 @@ public class ApiConnector {
             LOGGER.warn("getAllUnits: apiUrl is null or empty");
         }
 
-        LOGGER.info("getAllUnits: requesting units from {}", apiUrl + "/units/");
+        LOGGER.info("getAllUnits: requesting units from {}", apiUrl + "/units");
         OkHttpClient client = new OkHttpClient.Builder().build();
         MediaType mediaType = MediaType.parse("application/json; charset=utf-8");
         if (mediaType == null) {
@@ -183,7 +174,7 @@ public class ApiConnector {
         }
 
         Request request = new Request.Builder()
-                .url(apiUrl + "/units/")
+                .url(apiUrl + "/units")
                 .get()
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .build();
@@ -199,17 +190,17 @@ public class ApiConnector {
             if (code < 200 || code >= 300) {
                 LOGGER.error("getAllUnits: Failed to get units; Code: {}", code);
             }
-            JSONArray jsonArray = (JSONArray) new JSONParser().parse(responseBody);
-            for (Object o : jsonArray) {
-                JSONObject unitJson = (JSONObject) o;
-                Unit unit = Unit.of(unitJson.toJSONString());
-                units.add(unit);
+            ObjectMapper mapper = new ObjectMapper();
+            LOGGER.info("getAllUnits: parsing response {}", responseBody);
+            ApiResponse objResponse = mapper.readValue(responseBody, ApiResponse.class);
+            if (objResponse != null && objResponse._embedded != null && objResponse._embedded.unitList() != null) {
+                units.addAll(Arrays.asList(objResponse._embedded.unitList()));
             }
+
+            LOGGER.info("getAllUnits: response code {}, body: {}", code, objResponse.toString());
+
         } catch (IOException e) {
             LOGGER.error("getAllUnits: Connection failed", e);
-        } catch (ParseException e) {
-            LOGGER.error("getAllUnits: Failed to parse units response", e);
-            throw new RuntimeException(e);
         }
 
         return units;
@@ -220,27 +211,26 @@ public class ApiConnector {
         return apiUrl;
     }
 
+    record OutboxPayload(String OLD_STATUS, String NEW_STATUS, double OLD_KOORDX, double NEW_KOORDX, double OLD_KOORDY, double NEW_KOORDY) {
+    }
     public void processOutboxRow(MariaDBConnector.WorkerOutbox row) {
         String payload = row.payload;
         String unitPK = row.pk;
-        JSONParser parser = new JSONParser();
+
+        UUID unitID = configConnector.getUnitMappings().get(unitPK);
+        Unit unit = configConnector.getUnits().get(unitID);
+        if (unit == null) {
+            //TODO: handle missing unit with creation
+            LOGGER.error("processOutboxRow: No unit found for pk={}", unitPK);
+            return;
+        }
+
+
+
         try {
-            Unit unit = new Unit(UUID.fromString(getApiIdForUnitName(unitPK)), unitPK);
-            JSONObject json = (JSONObject) parser.parse(payload);
-            if (json.containsKey("NEW_STATUS") && json.containsKey("OLD_STATUS")) {
-                if (!json.get("OLD_STATUS").toString().equalsIgnoreCase(json.get("NEW_STATUS").toString())) {
-                    int newStatus = Integer.parseInt(json.get("NEW_STATUS").toString());
-                    unit.setStatus(newStatus);
-                }
-            }
-            if (json.containsKey("OLD_KOORDX") && json.containsKey("NEW_KOORDX") && json.containsKey("OLD_KOORDY") && json.containsKey("NEW_KOORDY")) {
-                if (!json.get("OLD_KOORDX").toString().equalsIgnoreCase(json.get("NEW_KOORDX").toString()) ||
-                        !json.get("OLD_KOORDY").toString().equalsIgnoreCase(json.get("NEW_KOORDY").toString())) {
-                    double newLat = Double.parseDouble(json.get("NEW_KOORDY").toString());
-                    double newLng = Double.parseDouble(json.get("NEW_KOORDX").toString());
-                    unit.setPosition(new LngLat(newLng, newLat));
-                }
-            }
+            OutboxPayload outboxPayload = mapper.readValue(payload, OutboxPayload.class);
+            unit.setStatus(Integer.parseInt(outboxPayload.NEW_STATUS));
+            unit.setPosition(new Position(outboxPayload.NEW_KOORDX, outboxPayload.NEW_KOORDY));
 
             updateUnit(unit);
 
@@ -262,20 +252,12 @@ public class ApiConnector {
         if (mediaType == null) {
             LOGGER.error("createUnit: Failed to parse media type");
         }
+        LOGGER.info("createUnit: unit data: {}", mapper.writeValueAsString(unit));
 
-        JSONObject json = new JSONObject();
-        json.put("name", unit.getName());
-        if (unit.getPosition() != null) {
-            json.put("latitude", unit.getPosition().getLatitude());
-            json.put("longitude", unit.getPosition().getLongitude());
-        }
-        if (unit.getStatus() >= 0 && unit.getStatus() < 10) {
-            json.put("unit_status", unit.getStatus());
-        }
-        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+        RequestBody body = RequestBody.create(mapper.writeValueAsString(unit), mediaType);
 
         Request request = new Request.Builder()
-                .url(apiUrl + "/units/")
+                .url(apiUrl + "/units")
                 .post(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", "Bearer " + apiKey)
@@ -294,7 +276,7 @@ public class ApiConnector {
                 throw new RuntimeException("Failed to create unit; Code: " + code);
             }
             LOGGER.info("createUnit: unit '{}' created successfully", unit.getName());
-            return Unit.of(response.body().string());
+            return mapper.readValue(response.body().string(), Unit.class);
         } catch (IOException e) {
             LOGGER.error("createUnit: IOException while creating unit '{}'", unit.getName(), e);
             throw new RuntimeException(e);
@@ -309,19 +291,11 @@ public class ApiConnector {
             LOGGER.error("updateUnit: Failed to parse media type");
         }
 
-        JSONObject json = new JSONObject();
-        if (unit.getPosition() != null) {
-            json.put("latitude", unit.getPosition().getLatitude());
-            json.put("longitude", unit.getPosition().getLongitude());
-        }
-        if (unit.getStatus() >= 0 && unit.getStatus() < 10) {
-            json.put("unit_status", unit.getStatus());
-        }
-        RequestBody body = RequestBody.create(json.toJSONString(), mediaType);
+        RequestBody body = RequestBody.create(this.mapper.writeValueAsString(unit), mediaType);
 
         Request request = new Request.Builder()
-                .url(apiUrl + "/units/" + unit.getId().toString() + "/")
-                .patch(body)
+                .url(apiUrl + "/units/" + unit.getId().toString())
+                .put(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .build();
@@ -336,13 +310,17 @@ public class ApiConnector {
             }
             if (code < 200 || code >= 300) {
                 LOGGER.error("updateUnit: Failed to update unit {}; Code: {}", unit.getId(), code);
+                LOGGER.info(response.body().string());
+
                 throw new RuntimeException("Failed to create unit; Code: " + code);
             }
             LOGGER.info("updateUnit: unit {} updated successfully", unit.getId());
-            return Unit.of(response.body().string());
+            return this.mapper.readValue(response.body().string(), Unit.class);
         } catch (IOException e) {
             LOGGER.error("updateUnit: IOException while updating unit {}", unit.getId(), e);
             throw new RuntimeException(e);
         }
     }
+
+
 }

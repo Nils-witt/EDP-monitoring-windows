@@ -1,6 +1,7 @@
 package dev.nilswitt.rk.edpmonitoring.connectors;
 
 import dev.nilswitt.rk.edpmonitoring.Utilities;
+import dev.nilswitt.rk.edpmonitoring.enitites.Unit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -13,12 +14,14 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
+import java.util.UUID;
 
 public class ConfigConnector {
     private static final Logger LOGGER = LogManager.getLogger(ConfigConnector.class);
     private static ConfigConnector instance = new ConfigConnector();
     private Properties props = new Properties();
-    private HashMap<String, String> unitMapping = new HashMap<>();
+    private HashMap<String, UUID> unitMapping = new HashMap<>();
+    private HashMap<UUID, Unit> units = new HashMap<>();
 
     private ConfigConnector() {
         loadConfig();
@@ -59,7 +62,7 @@ public class ConfigConnector {
             String unitApiId = props.getProperty("units." + key + ".api_id");
             String unitName = props.getProperty("units." + key + ".name");
             if (unitApiId != null && unitName != null) {
-                this.unitMapping.put(unitName, unitApiId);
+                this.unitMapping.put(unitName, UUID.fromString(unitApiId));
                 LOGGER.info("Loaded unit mapping: {} -> {}", unitName, unitApiId);
             } else {
                 LOGGER.warn("Incomplete unit mapping for key {}: api_id or name missing", key);
@@ -81,20 +84,12 @@ public class ConfigConnector {
         return defaultVal;
     }
 
-    public HashMap<String, String> getUnitMappings() {
-        // Placeholder for method implementation
+    public HashMap<String, UUID> getUnitMappings() {
         return this.unitMapping;
     }
 
-
-    public class UnitMapping {
-        public String unitName;
-        public String apiId;
-
-        public UnitMapping(String unitName, String apiId) {
-            this.unitName = unitName;
-            this.apiId = apiId;
-        }
+    public HashMap<UUID, Unit> getUnits() {
+        return this.units;
     }
 
 }
