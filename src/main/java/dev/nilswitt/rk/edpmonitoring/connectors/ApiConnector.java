@@ -33,6 +33,18 @@ public class ApiConnector {
 
         this.configConnector = configConnector;
     }
+    public ApiConnector(ConfigConnector configConnector) {
+        this.configConnector = configConnector;
+        String apiUrl = configConnector.getConfigValue("api.url", "API_URL", "http://localhost:8080/api");
+        String apiToken = configConnector.getConfigValue("api.token", "API_TOKEN", null);
+        String apiUsername = configConnector.getConfigValue("api.username", "API_TOKEN", null);
+        String apiPassword = configConnector.getConfigValue("api.password", "API_TOKEN", null);
+        this.apiUrl = apiUrl;
+        this.apiKey = apiToken;
+        this.username = apiUsername;
+        this.password = apiPassword;
+        LOGGER.info("Using API URL: {}", apiUrl);
+    }
 
     public boolean testConnection() {
 

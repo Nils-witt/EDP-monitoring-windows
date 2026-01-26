@@ -23,6 +23,23 @@ public class MariaDBConnector {
         this.user = user;
         this.pass = pass;
     }
+    public MariaDBConnector(ConfigConnector configConnector) {
+        String url = configConnector.getConfigValue("db.url", "DB_URL", "jdbc:mariadb://localhost:3306/edp_monitoring");
+        String user = configConnector.getConfigValue("db.user", "DB_USER", "edp_user");
+        String pass = configConnector.getConfigValue("db.password", "DB_PASSWORD", "edp_password");
+
+        this.url = url;
+        this.user = user;
+        this.pass = pass;
+        LOGGER.info("Using DB URL: {} (user={})", url, user);
+
+        if (this.testConnection()) {
+            LOGGER.info("Database connection test successful.");
+        } else {
+            LOGGER.error("Database connection test failed. Exiting.");
+            System.exit(1);
+        }
+    }
 
     public void removeFromOutbox(int id) {
         try (Connection conn = DriverManager.getConnection(url, user, pass)) {

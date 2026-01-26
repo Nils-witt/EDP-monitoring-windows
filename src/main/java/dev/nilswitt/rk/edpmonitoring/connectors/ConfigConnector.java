@@ -23,6 +23,27 @@ public class ConfigConnector {
     private HashMap<String, UUID> unitMapping = new HashMap<>();
     private HashMap<UUID, Unit> units = new HashMap<>();
 
+    private MiniOConnector miniOConnector;
+    private MariaDBConnector mariaDBConnector;
+
+    public MariaDBConnector getMariaDBConnector() {
+        return mariaDBConnector;
+    }
+
+    public void setMariaDBConnector(MariaDBConnector mariaDBConnector) {
+        this.mariaDBConnector = mariaDBConnector;
+    }
+
+    private ApiConnector apiConnector;
+
+    public ApiConnector getApiConnector() {
+        return apiConnector;
+    }
+
+    public void setApiConnector(ApiConnector apiConnector) {
+        this.apiConnector = apiConnector;
+    }
+
     private ConfigConnector() {
         loadConfig();
     }
@@ -92,4 +113,11 @@ public class ConfigConnector {
         return this.units;
     }
 
+    public MiniOConnector getMiniOConnector() {
+        return miniOConnector;
+    }
+
+    public void setMiniOConnector(MiniOConnector miniOConnector) {
+        this.miniOConnector = miniOConnector;
+    }
 }
