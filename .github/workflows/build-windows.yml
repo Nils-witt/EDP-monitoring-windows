@@ -43,7 +43,6 @@ jobs:
         run: ls -la target
       - name: Build NSIS installer
         run: |
-          # Run makensis to build the installer; installer script expects files under target/
           makensis -V4 installer.nsi
         working-directory: ${{ github.workspace }}
 
@@ -58,5 +57,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
-          files: target/*.exe
+          files: |
+            target/*.exe
+            target/*.jar
           token: ${{ secrets.GITHUB_TOKEN }}
