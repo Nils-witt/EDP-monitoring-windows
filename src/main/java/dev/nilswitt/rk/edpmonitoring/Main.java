@@ -27,6 +27,7 @@ public class Main {
         if (configConnector.getConfigValue("mdns.enabled", "MDNS_ENABLED", "false").equalsIgnoreCase("true")) {
             MDnsConnector.start();
         }
+        BackUpService.start();
 
         MariaDBConnector mariaDBConnector = new MariaDBConnector(configConnector);
         configConnector.setMariaDBConnector(mariaDBConnector);
@@ -76,13 +77,6 @@ public class Main {
             }
         }
 
-        if (configConnector.getConfigValue("s3.enabled", "S3_ENABLED", "false").equalsIgnoreCase("true")) {
-            MiniOConnector miniOConnector = new MiniOConnector(configConnector);
-            configConnector.setMiniOConnector(miniOConnector);
-        }
-        if (configConnector.getConfigValue("db.backup.enabled", "DB_BACKUP_ENABLED", "false").equalsIgnoreCase("true")) {
-            BackUpService.start(configConnector);
-        }
         if (configConnector.getConfigValue("db.liveconnection.enabled", "DB_LIVECONNECTION_ENABLED", "false").equalsIgnoreCase("true")) {
             OutBoxWatcher.start(configConnector.getMariaDBConnector(), configConnector.getApiConnector());
         }

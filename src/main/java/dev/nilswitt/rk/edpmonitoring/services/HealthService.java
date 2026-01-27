@@ -17,8 +17,6 @@ public class HealthService {
 
     private static final Logger log = LogManager.getLogger(HealthService.class);
 
-    private static Map<String, Object> statusMap = new HashMap<>();
-
     public static void start(ConfigConnector configConnector) {
         try {
             InetSocketAddress address = new InetSocketAddress(8080);
@@ -40,9 +38,16 @@ public class HealthService {
         }
 
         private String getStatus() throws JsonProcessingException {
+
+            Map<String, Object> map = new HashMap<>();
+            map.put("service", "EDP Monitoring");
+            map.put("version", "1.0.0");
+            map.put("status", "OK");
+            map.put("backup", BackUpService.getStatusMap());
+
             ObjectMapper mapper = new ObjectMapper();
             String jsonResult = mapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(statusMap);
+                    .writeValueAsString(map);
             return jsonResult;
         }
 
@@ -57,13 +62,5 @@ public class HealthService {
                 log.error("Error handling health check request: {}", e.getMessage(), e);
             }
         }
-    }
-
-    public static Map<String, Object> getStatusMap() {
-        return statusMap;
-    }
-
-    public static void updateStatusKey(String key, Object value) {
-        statusMap.put(key, value);
     }
 }

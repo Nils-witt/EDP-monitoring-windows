@@ -105,6 +105,11 @@ public class ConfigConnector {
         return defaultVal;
     }
 
+
+    public Properties getProps() {
+        return props;
+    }
+
     public HashMap<String, UUID> getUnitMappings() {
         return this.unitMapping;
     }

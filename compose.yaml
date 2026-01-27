@@ -1,7 +1,6 @@
 services:
   mariadb:
     image: mariadb:latest
-    container_name: edp_mariadb
     environment:
       MYSQL_ROOT_PASSWORD: examplepassword
       MYSQL_DATABASE: edp_monitoring

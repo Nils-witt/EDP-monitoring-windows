@@ -2,6 +2,7 @@ package dev.nilswitt.rk.edpmonitoring.services;
 
 import dev.nilswitt.rk.edpmonitoring.connectors.ConfigConnector;
 import dev.nilswitt.rk.edpmonitoring.connectors.GPGConnector;
+import dev.nilswitt.rk.edpmonitoring.connectors.StorageInterface;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -10,8 +11,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -26,29 +30,69 @@ public class BackUpService {
     public static Map<String, Object> getStatusMap() {
         return statusMap;
     }
+
     public static void updateStatus(String key, Object value) {
         statusMap.put(key, value);
-        HealthService.updateStatusKey("backup_service", statusMap);
     }
 
-    public static void start(ConfigConnector configConnector) {
-        if (configConnector.getMiniOConnector() == null) {
-            LOGGER.error("MiniOConnector is not initialized. Backup service will not start.");
-            return;
-        }
-        executor.scheduleAtFixedRate(new BackUpWorker(configConnector), 0, 5, TimeUnit.MINUTES);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(Integer.parseInt(configConnector.getConfigValue("db.backup.interval", "DB_BACKUP_INTERVAL", "5")), TimeUnit.SECONDS)) {
-                    executor.shutdownNow();
+
+    public static void start() {
+        ConfigConnector configConnector = ConfigConnector.getInstance();
+        Properties props = configConnector.getProps();
+        HashSet<String> backupKeys = new HashSet<>();
+        props.keySet().stream().filter(key -> key.toString().startsWith("db.backup.")).forEach(key -> {
+            LOGGER.info("Getting backup key: {}", key);
+            String bKey = key.toString().split("\\.")[2];
+            backupKeys.add(bKey);
+        });
+        backupKeys.forEach(key -> {
+            String intervalStr = props.getProperty("db.backup." + key + ".interval", null);
+            String enabledStr = props.getProperty("db.backup." + key + ".enabled", "false");
+            String storageId = props.getProperty("db.backup." + key + ".storage_id", null);
+            String tmpDir = props.getProperty("db.backup." + key + ".tmpdir", null);
+            String id = props.getProperty("db.backup." + key + ".id", null);
+            String executablePath = props.getProperty("db.backup." + key + ".dump_executable", null);
+            String encryptionKeyPath = props.getProperty("db.backup." + key + ".encryption_Key", null);
+            if (enabledStr != null && enabledStr.equals("true")) {
+                if (intervalStr == null || storageId == null || id == null || executablePath == null || encryptionKeyPath == null || tmpDir == null) {
+                    LOGGER.error("Backup configuration for key {} is incomplete. Skipping backup task.", key);
+                    return;
                 }
-            } catch (InterruptedException e) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
+                StorageInterface storageInterface = StorageService.getInstance().getConnectors().get(storageId);
+                startWorker(id, Integer.parseInt(intervalStr) * 60, storageInterface, executablePath, tmpDir, encryptionKeyPath);
             }
-        }));
-        updateStatus("running", true);
+        });
+        Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
+    }
+
+    private static void startWorker(String id, int interval, StorageInterface storageInterface, String executablePath, String tmpDir, String encryptionKeyPath) {
+        LOGGER.info("Starting BackUpWorker with ID: {}, Interval: {} seconds, Executable Path: {}, Temp Dir: {}, Encryption Key Path: {}", id, interval, executablePath, tmpDir, encryptionKeyPath);
+        HashSet<String> backupKeys = new HashSet<>();
+        String prefix = "backup_" + id + "_";
+        storageInterface.getFiles().stream().filter(file -> file.startsWith(prefix)).forEach(file -> backupKeys.add(file.substring(prefix.length(), prefix.length() + 19)));
+        LocalDateTime last_backup = null;
+        for (String backupKey : backupKeys) {
+            LocalDateTime keyTime = LocalDateTime.parse(backupKey, DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+            if (last_backup == null) {
+                last_backup = keyTime;
+            } else if (keyTime.isAfter(last_backup)) {
+                last_backup = keyTime;
+            }
+        }
+        LOGGER.info("Last backup time for ID {}: {}", id, last_backup);
+
+        int duration_ago = Math.toIntExact(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) - (last_backup != null ? last_backup.toEpochSecond(ZoneOffset.UTC) : 0));
+        LOGGER.info("Last run {} seconds ago", duration_ago);
+
+        int offset = 0;
+        if (duration_ago < interval) {
+            LOGGER.info("Next BackUpWorker for ID {} scheduled in {} seconds", id, interval - duration_ago);
+            offset = interval - duration_ago;
+        }else {
+            LOGGER.info("Scheduling immediate BackUpWorker for ID {}", id);
+        }
+
+        executor.scheduleAtFixedRate(new BackUpWorker(id, storageInterface, executablePath, tmpDir, encryptionKeyPath), offset, interval, TimeUnit.SECONDS);
     }
 
     public static void stop() {
@@ -57,15 +101,24 @@ public class BackUpService {
     }
 
     private static class BackUpWorker implements Runnable {
-        Logger logger = LogManager.getLogger(BackUpWorker.class);
-        boolean isWindows = System.getProperty("os.name")
-                .toLowerCase().startsWith("windows");
-        private final ConfigConnector configConnector;
-        Path backTmpFile;
-        DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+        private static Logger logger = LogManager.getLogger(BackUpWorker.class);
+        private static boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+        private static DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
-        public BackUpWorker(ConfigConnector configConnector) {
-            this.configConnector = configConnector;
+        private final String executablePath;
+        private final StorageInterface storageInterface;
+        private final String tmpDir;
+        private final String encryptionKeyPath;
+        private final String id;
+
+        Path backTmpFile;
+
+        public BackUpWorker(String id, StorageInterface storageInterface, String executablePath, String tmpDir, String encryptionKeyPath) {
+            this.storageInterface = storageInterface;
+            this.executablePath = executablePath;
+            this.tmpDir = tmpDir;
+            this.encryptionKeyPath = encryptionKeyPath;
+            this.id = id;
         }
 
         @Override
@@ -73,7 +126,7 @@ public class BackUpService {
             logger.info("BackUpWorker started.");
             try {
                 runPreHook();
-                uploadToMinIO();
+                uploadToStorage();
                 runPostHook();
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
@@ -85,19 +138,17 @@ public class BackUpService {
         private void runPreHook() throws IOException, InterruptedException {
             logger.info("Pre-hook started.");
             Random random = new Random();
-            String executablePath = configConnector.getConfigValue("db.backup.dump_executable", "DB_PATH_DUMP_EXECUTABLE", null);
             if (executablePath == null) {
                 logger.error("No database dump executable path configured. Aborting backup.");
                 return;
             }
-            String sqlPath = configConnector.getConfigValue("db.backup.dump_tmp", "DB_PATH_DUMP_FILE", "tmp");
             String backupFileName = random.ints(48, 122 + 1)
                     .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
                     .limit(10)
                     .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                     .toString() + ".sql";
-            backTmpFile = Path.of(sqlPath, backupFileName);
-            Path sqlDir = Path.of(sqlPath);
+            backTmpFile = Path.of(tmpDir, backupFileName);
+            Path sqlDir = Path.of(tmpDir);
             logger.info("Back-up executable path: {}", executablePath);
             logger.info("Back-up tmp path: {}", backTmpFile);
             if (!Files.exists(sqlDir)) {
@@ -119,17 +170,15 @@ public class BackUpService {
             logger.info("Pre-hook finished.");
         }
 
-        private void uploadToMinIO() {
+        private void uploadToStorage() {
             logger.info("uploadToMinIO started.");
             try {
-
-                String gpgPublicKeyPath = configConnector.getConfigValue("s3.encryption.key", "S3_ENCRYPTION_KEY", null);
-                GPGConnector.encrypt(gpgPublicKeyPath, backTmpFile.toAbsolutePath().toString(), backTmpFile.toAbsolutePath() + ".gpg");
+                GPGConnector.encrypt(encryptionKeyPath, backTmpFile.toAbsolutePath().toString(), backTmpFile.toAbsolutePath() + ".gpg");
                 logger.info("File encryption finished.");
-                configConnector.getMiniOConnector().uploadFile(LocalDateTime.now().format(myFormatObj) + ".sql.gpg", backTmpFile.toAbsolutePath().toString()+ ".gpg");
-                logger.info("MiniO connector upload finished.");
-                BackUpService.updateStatus("last_backup",LocalDateTime.now().format(myFormatObj));
-            } catch (IOException e) {
+                storageInterface.putFile("backup_" + id + "_" + LocalDateTime.now().format(myFormatObj) + ".sql.gpg", backTmpFile.toAbsolutePath() + ".gpg");
+                logger.info("Upload finished.");
+                BackUpService.updateStatus(id + "_last_backup", LocalDateTime.now().format(myFormatObj));
+            } catch (Exception e) {
                 logger.error(e.getMessage());
             }
             logger.info("uploadToMinIO finished.");
@@ -145,7 +194,7 @@ public class BackUpService {
                     logger.warn("Failed to delete temporary backup file: {}", backTmpFile.toAbsolutePath());
                 }
             }
-            File fileGPG = new File(backTmpFile.toAbsolutePath().toString() + ".gpg");
+            File fileGPG = new File(backTmpFile.toAbsolutePath() + ".gpg");
             if (fileGPG.exists()) {
                 if (fileGPG.delete()) {
                     logger.info("Temporary backup file deleted: {}", backTmpFile.toAbsolutePath() + ".gpg");
