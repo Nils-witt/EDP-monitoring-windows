@@ -67,28 +67,35 @@ public class BackUpService {
 
     private static void startWorker(String id, int interval, StorageInterface storageInterface, String executablePath, String tmpDir, String encryptionKeyPath) {
         LOGGER.info("Starting BackUpWorker with ID: {}, Interval: {} seconds, Executable Path: {}, Temp Dir: {}, Encryption Key Path: {}", id, interval, executablePath, tmpDir, encryptionKeyPath);
-        HashSet<String> backupKeys = new HashSet<>();
-        String prefix = "backup_" + id + "_";
-        storageInterface.getFiles().stream().filter(file -> file.startsWith(prefix)).forEach(file -> backupKeys.add(file.substring(prefix.length(), prefix.length() + 19)));
-        LocalDateTime last_backup = null;
-        for (String backupKey : backupKeys) {
-            LocalDateTime keyTime = LocalDateTime.parse(backupKey, DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-            if (last_backup == null) {
-                last_backup = keyTime;
-            } else if (keyTime.isAfter(last_backup)) {
-                last_backup = keyTime;
-            }
-        }
-        LOGGER.info("Last backup time for ID {}: {}", id, last_backup);
 
-        int duration_ago = Math.toIntExact(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) - (last_backup != null ? last_backup.toEpochSecond(ZoneOffset.UTC) : 0));
-        LOGGER.info("Last run {} seconds ago", duration_ago);
+        int duration_ago = 0;
+        try {
+            HashSet<String> backupKeys = new HashSet<>();
+            String prefix = "backup_" + id + "_";
+            storageInterface.getFiles().stream().filter(file -> file.startsWith(prefix)).forEach(file -> backupKeys.add(file.substring(prefix.length(), prefix.length() + 19)));
+            LocalDateTime last_backup = null;
+            for (String backupKey : backupKeys) {
+                LocalDateTime keyTime = LocalDateTime.parse(backupKey, DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                if (last_backup == null) {
+                    last_backup = keyTime;
+                } else if (keyTime.isAfter(last_backup)) {
+                    last_backup = keyTime;
+                }
+            }
+            LOGGER.info("Last backup time for ID {}: {}", id, last_backup);
+
+            duration_ago = Math.toIntExact(LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) - (last_backup != null ? last_backup.toEpochSecond(ZoneOffset.UTC) : 0));
+            LOGGER.info("Last run {} seconds ago", duration_ago);
+
+        } catch (Exception e) {
+            LOGGER.error("Error starting BackUpWorker with ID: {} => {}", id, "Can not determine last backup time. Scheduling backup in interval time");
+        }
 
         int offset = 0;
         if (duration_ago < interval) {
             LOGGER.info("Next BackUpWorker for ID {} scheduled in {} seconds", id, interval - duration_ago);
             offset = interval - duration_ago;
-        }else {
+        } else {
             LOGGER.info("Scheduling immediate BackUpWorker for ID {}", id);
         }
 
