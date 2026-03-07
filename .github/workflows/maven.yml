@@ -9,6 +9,8 @@ on:
 
 jobs:
   mvn-test:
+    permissions:
+      contents: read
     name: Run mvn test
     runs-on: ubuntu-latest
 
